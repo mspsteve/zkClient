@@ -1,8 +1,9 @@
 package com.msp.web.zk;
 
 import org.apache.zookeeper.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -12,35 +13,30 @@ import java.util.concurrent.CountDownLatch;
  * @create 2017-10-19 18:08
  **/
 public class ZkConnect  implements Watcher {
-    private static final int SESSION_TIMEOUT = 5000;
-    private ZooKeeper zk;
-    private CountDownLatch connectedSignal = new CountDownLatch(1);
-    public void connect(String hosts) throws IOException, InterruptedException {
-        zk = new ZooKeeper(hosts, SESSION_TIMEOUT, this);
-        connectedSignal.await();
-    }
-    public void process(WatchedEvent event) { // Watcher interface
-        if (event.getState() == Event.KeeperState.SyncConnected) {
-            connectedSignal.countDown();
-        }
-    }
-    public void create(String groupName) throws KeeperException,
-            InterruptedException {
-        String path = "/" + groupName;
-        String createdPath = zk.create(path, null/*data*/, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
-        System.out.println("Created " + createdPath);
-    }
-    public void close() throws InterruptedException {
-        zk.close();
-    }
-    public static void main(String[] args) throws Exception {
-        //host
-        String host = "http://123.56.223.134:2181";
+    private final Logger logger = LoggerFactory.getLogger(ZkConnect.class);
 
-        ZkConnect ZkConnect = new ZkConnect();
-        ZkConnect.connect(host);
-      //  ZkConnect.create(args[1]);
-        ZkConnect.close();
+    private static CountDownLatch connectedSemaphone=new CountDownLatch(1);
+    public static void main(String[] args) throws Exception {
+        ZooKeeper zooKeeper=new ZooKeeper("123.56.223.134:2181",5000,new ZkConnect());
+        System.out.println(zooKeeper.getState());
+        try {
+            connectedSemaphone.await();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("ZooKeeper session established");
+        System.out.println("sessionId="+zooKeeper.getSessionId());
+        System.out.println("password="+zooKeeper.getSessionPasswd());
+    }
+
+
+    /*
+     * 检测是否连接成功
+     */
+    public void process(WatchedEvent event) {
+        System.out.println("my ZookeeperConstructorSimple watcher Receive watched event:"+event);
+        if(Event.KeeperState.SyncConnected==event.getState()){
+            connectedSemaphone.countDown();
+        }
     }
 }
